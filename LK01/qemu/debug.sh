@@ -10,4 +10,5 @@ qemu-system-x86_64 \
     -monitor /dev/null \
     -initrd debug.cpio \
     -net nic,model=virtio \
-    -net user
+    -net user \
+    -gdb tcp::12345
